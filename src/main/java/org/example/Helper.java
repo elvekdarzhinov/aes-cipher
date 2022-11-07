@@ -6,38 +6,98 @@ import java.io.IOException;
 
 public class Helper {
 
-    public static final int BLOCK_SIZE = 16; // bytes
+    //    public static final int BLOCK_SIZE = 16; // bytes
     public static final int Nb = 4;
-    public static final int KEY_SIZE = 16; // bytes
+    //    public static final int KEY_SIZE = 16; // bytes
     public static final int Nk = 4;
     public static final int Nr = 10; // number of rounds
 
-    public static byte[] cipher(byte[] in, byte[] out) {
+    private static byte[] help(byte[][] state) {
+        byte[] out = new byte[16];
+        for (int i = 0; i < 4; i++) {
+            System.arraycopy(state[i], 0, out, 4 * i, 4);
+        }
+        return out;
+    }
+
+    public static byte[] cipher(byte[] in, byte[] key, BufferedWriter outputWriter) throws IOException {
         byte[][] state = makeState(in);
-        byte[][] w = keyExpansion(new byte[]{});
+        outputWriter.write(Main.byteToString(help(state)) + "\n");
+        byte[][] w = keyExpansion(key);
 
         addRoundKey(state, w, 0);
+        outputWriter.write(Main.byteToString(help(state)) + "\n");
 
-        for (int round = 1; round < Nr - 1; round++) {
+        for (int round = 1; round < Nr ; round++) {
+            outputWriter.write(round + "\n");
             subBytes(state);
+            outputWriter.write(Main.byteToString(help(state)) + "\n");
             shiftRows(state);
+            outputWriter.write(Main.byteToString(help(state)) + "\n");
             mixColumns(state);
+            outputWriter.write(Main.byteToString(help(state)) + "\n");
             addRoundKey(state, w, round * Nb);
+            outputWriter.write(Main.byteToString(help(state)) + "\n");
         }
 
+        outputWriter.write("last\n");
         subBytes(state);
+        outputWriter.write(Main.byteToString(help(state)) + "\n");
         shiftRows(state);
+        outputWriter.write(Main.byteToString(help(state)) + "\n");
         addRoundKey(state, w, Nr * Nb);
+        outputWriter.write(Main.byteToString(help(state)) + "\n");
 
         return makeOutput(state);
     }
 
-    public static void mixColumns(byte[][] state) {
-        for (int c = 0; c < 4; c++) {
-            state[0][c] = (byte) ((0x02 * state[0][c]) ^ (0x03 * state[1][c]) ^ state[2][c] ^ state[3][c]);
-            state[1][c] = (byte) (state[0][c] ^ (0x02 * state[1][c]) ^ (0x03 * state[2][c]) ^ state[3][c]);
-            state[2][c] = (byte) (state[0][c] ^ state[1][c] ^ (0x02 * state[2][c]) ^ (0x03 * state[3][c]));
-            state[3][c] = (byte) ((0x03 * state[0][c]) ^ state[1][c] ^ state[2][c] ^ (0x02 * state[3][c]));
+//    public static void mixColumns(byte[][] state) {
+//        for (int c = 0; c < 4; c++) {
+//            state[0][c] = (byte) ((0x02 * state[0][c]) ^ (0x03 * state[1][c]) ^ state[2][c] ^ state[3][c]);
+//            state[1][c] = (byte) (state[0][c] ^ (0x02 * state[1][c]) ^ (0x03 * state[2][c]) ^ state[3][c]);
+//            state[2][c] = (byte) (state[0][c] ^ state[1][c] ^ (0x02 * state[2][c]) ^ (0x03 * state[3][c]));
+//            state[3][c] = (byte) ((0x03 * state[0][c]) ^ state[1][c] ^ state[2][c] ^ (0x02 * state[3][c]));
+//        }
+//    }
+
+    private static byte GMul(byte u, byte v) {
+        byte p = 0;
+
+        for (int i = 0; i < 8; ++i) {
+            if ((u & 0x01) != 0) {    //
+                p ^= v;
+            }
+
+            int flag = (v & 0x80);
+            v <<= 1;
+            if (flag != 0) {
+                v ^= 0x1B; /* x^8 + x^4 + x^3 + x + 1 */
+            }
+
+            u >>= 1;
+        }
+
+        return p;
+    }
+
+    // смесь столбцов
+    static void mixColumns(byte[][] state) {
+        byte[][] tmp = new byte[4][4];
+        byte[][] M = {{0x02, 0x03, 0x01, 0x01},
+                      {0x01, 0x02, 0x03, 0x01},
+                      {0x01, 0x01, 0x02, 0x03},
+                      {0x03, 0x01, 0x01, 0x02}};
+
+        /* copy state[4][4] to tmp[4][4] */
+        for (int i = 0; i < 4; ++i) {
+            System.arraycopy(state[i], 0, tmp[i], 0, 4);
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {  // Сложение и умножение поля Галуа
+                state[i][j] = (byte) (GMul(M[i][0], tmp[0][j]) ^ GMul(M[i][1], tmp[1][j])
+                                        ^ GMul(M[i][2], tmp[2][j]) ^ GMul(M[i][3], tmp[3][j]));
+            }
         }
     }
 
@@ -58,7 +118,7 @@ public class Helper {
     private static void addRoundKey(byte[][] state, byte[][] w, int offset) {
         for (int row = 0; row < 4; row++) {
             for (int column = 0; column < 4; column++) {
-                state[row][column] = (byte) (state[row][column] ^ w[row + offset][column]);
+                state[row][column] = (byte) (state[row][column] ^ w[column + offset][row]);
             }
         }
     }
@@ -102,10 +162,6 @@ public class Helper {
         for (int i = 0; i < 4; i++) {
             out[i] = in[(i + offset) % 4];
         }
-//        out[0] = in[1];
-//        out[1] = in[2];
-//        out[2] = in[3];
-//        out[3] = in[0];
         return out;
     }
 
@@ -121,30 +177,11 @@ public class Helper {
         int left = (in & 0xff) >>> 4;
         int right = (in & 0xff) & 0b00001111;
 
-//        System.out.println(in & 0xff);
-//        System.out.println(left);
-//        System.out.println(right);
-
         return (byte) Sbox[16 * left + right];
     }
 
     public static void main(String[] args) {
-        byte[] key = new byte[]{0x2b, 0x7e, 0x15, 0x16, 0x28,
-                                (byte) 0xae, (byte) 0xd2, (byte) 0xa6,
-                                (byte) 0xab, (byte) 0xf7, 0x15, (byte) 0x88, 0x09, (byte) 0xcf, 0x4f, 0x3c};
 
-        byte[][] keys = keyExpansion(key);
-
-        try (BufferedWriter outputWriter = new BufferedWriter(new FileWriter("output.txt"))) {
-
-            for (byte[] bytes : keys) {
-                outputWriter.write(Main.byteToString(bytes));
-                outputWriter.newLine();
-            }
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public static byte[][] makeState(byte[] input) {

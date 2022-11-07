@@ -13,13 +13,13 @@ public class Main {
     private static final String OUTPUT_FILE = "output.txt";
 
     public static void main(String[] args) {
-//        if (args.length == 0) {
-//            System.out.println("Syntax: [-e | -d] -k keyFile -i inputFile -o outputFile");
-//            return;
-//        }
-//        if (args.length != 8) {
-//            throw new IllegalArgumentException("Incorrect number of arguments.");
-//        }
+        if (args.length == 0) {
+            System.out.println("Syntax: [-e | -d] -k keyFile -i inputFile -o outputFile");
+            return;
+        }
+        if (args.length != 7) {
+            throw new IllegalArgumentException("Incorrect number of arguments.");
+        }
 
         boolean encrypt = true;
         String inputFile = INPUT_FILE;
@@ -43,12 +43,9 @@ public class Main {
             byte[] input = convert(inputReader.readLine());
             byte[] key = convert(keyReader.readLine());
 
-//            IdeaCipher ideaCipher = new IdeaCipher(key, rounds);
-//
-//            for (int i = 0; i < input.length; i += IdeaCipher.BLOCK_SIZE) {
-//                byte[] output = ideaCipher.crypt(input, i, encrypt);
-//                outputWriter.write(byteToString(output));
-//            }
+            var output = Helper.cipher(input, key, outputWriter);
+//            outputWriter.write(byteToString(output));
+
 
         } catch (IOException e) {
             throw new RuntimeException(e);
