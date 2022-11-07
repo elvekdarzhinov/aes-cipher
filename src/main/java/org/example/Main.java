@@ -43,7 +43,12 @@ public class Main {
             byte[] input = convert(inputReader.readLine());
             byte[] key = convert(keyReader.readLine());
 
-            byte[] output = Helper.invCipher(input, key);
+            byte[] output;
+            if (encrypt) {
+                output = Helper.cipher(input, key);
+            } else {
+                output = Helper.invCipher(input, key);
+            }
             outputWriter.write(byteToString(output));
 
 

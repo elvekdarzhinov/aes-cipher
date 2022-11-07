@@ -6,12 +6,24 @@ public class Helper {
     public static final int Nk = 4; // number of 32-bit words in key
     public static final int Nr = 10; // number of rounds
 
-    private static byte[] help(byte[][] state) {
-        byte[] out = new byte[16];
-        for (int i = 0; i < 4; i++) {
-            System.arraycopy(state[i], 0, out, 4 * i, 4);
+    public static byte[] cipher(byte[] in, byte[] key) {
+        byte[][] state = makeState(in);
+        byte[][] w = keyExpansion(key);
+
+        addRoundKey(state, w, 0);
+
+        for (int round = 1; round < Nr; round++) {
+            subBytes(state);
+            shiftRows(state);
+            mixColumns(state);
+            addRoundKey(state, w, round * Nb);
         }
-        return out;
+
+        subBytes(state);
+        shiftRows(state);
+        addRoundKey(state, w, Nr * Nb);
+
+        return makeOutput(state);
     }
 
     public static byte[] invCipher(byte[] in, byte[] key) {
@@ -34,22 +46,10 @@ public class Helper {
         return makeOutput(state);
     }
 
-    private static void invMixColumns(byte[][] state) {
-        byte[][] tmp = new byte[4][4];
-        byte[][] M = {{0x0E, 0x0B, 0x0D, 0x09},
-                      {0x09, 0x0E, 0x0B, 0x0D},
-                      {0x0D, 0x09, 0x0E, 0x0B},
-                      {0x0B, 0x0D, 0x09, 0x0E}};
-
-        /* copy state[4][4] to tmp[4][4] */
-        for (int i = 0; i < 4; ++i) {
-            System.arraycopy(state[i], 0, tmp[i], 0, 4);
-        }
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                state[i][j] = (byte) (GMul(M[i][0], tmp[0][j]) ^ GMul(M[i][1], tmp[1][j])
-                        ^ GMul(M[i][2], tmp[2][j]) ^ GMul(M[i][3], tmp[3][j]));
+    private static void subBytes(byte[][] state) {
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                state[i][j] = (byte) Sbox[state[i][j] & 0xff];
             }
         }
     }
@@ -62,50 +62,16 @@ public class Helper {
         }
     }
 
+    private static void shiftRows(byte[][] state) {
+        state[1] = shiftWord(state[1], 1);
+        state[2] = shiftWord(state[2], 2);
+        state[3] = shiftWord(state[3], 3);
+    }
+
     private static void invShiftRows(byte[][] state) {
         state[1] = shiftWord(state[1], -1);
         state[2] = shiftWord(state[2], -2);
         state[3] = shiftWord(state[3], -3);
-    }
-
-    public static byte[] cipher(byte[] in, byte[] key) {
-        byte[][] state = makeState(in);
-        byte[][] w = keyExpansion(key);
-
-        addRoundKey(state, w, 0);
-
-        for (int round = 1; round < Nr; round++) {
-            subBytes(state);
-            shiftRows(state);
-            mixColumns(state);
-            addRoundKey(state, w, round * Nb);
-        }
-
-        subBytes(state);
-        shiftRows(state);
-        addRoundKey(state, w, Nr * Nb);
-
-        return makeOutput(state);
-    }
-
-    private static byte GMul(byte u, byte v) {
-        byte p = 0;
-
-        for (int i = 0; i < 8; ++i) {
-            if ((u & 0x01) != 0) {    //
-                p ^= v;
-            }
-
-            int flag = (v & 0x80);
-            v <<= 1;
-            if (flag != 0) {
-                v ^= 0x1B; /* x^8 + x^4 + x^3 + x + 1 */
-            }
-
-            u >>= 1;
-        }
-
-        return p;
     }
 
     // смесь столбцов
@@ -129,16 +95,22 @@ public class Helper {
         }
     }
 
-    private static void shiftRows(byte[][] state) {
-        state[1] = shiftWord(state[1], 1);
-        state[2] = shiftWord(state[2], 2);
-        state[3] = shiftWord(state[3], 3);
-    }
+    private static void invMixColumns(byte[][] state) {
+        byte[][] tmp = new byte[4][4];
+        byte[][] M = {{0x0e, 0x0b, 0x0d, 0x09},
+                      {0x09, 0x0e, 0x0b, 0x0d},
+                      {0x0d, 0x09, 0x0e, 0x0b},
+                      {0x0b, 0x0d, 0x09, 0x0e}};
 
-    private static void subBytes(byte[][] state) {
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                state[i][j] = (byte) Sbox[state[i][j] & 0xff];
+        /* copy state[4][4] to tmp[4][4] */
+        for (int i = 0; i < 4; ++i) {
+            System.arraycopy(state[i], 0, tmp[i], 0, 4);
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                state[i][j] = (byte) (GMul(M[i][0], tmp[0][j]) ^ GMul(M[i][1], tmp[1][j])
+                        ^ GMul(M[i][2], tmp[2][j]) ^ GMul(M[i][3], tmp[3][j]));
             }
         }
     }
@@ -151,8 +123,14 @@ public class Helper {
         }
     }
 
-    // byte[16] key
-    // byte[44][4] w // word is 4 bytes
+    public static byte[] xorWords(byte[] a, byte[] b) {
+        byte[] out = new byte[4];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) (a[i] ^ b[i]);
+        }
+        return out;
+    }
+
     private static byte[][] keyExpansion(byte[] key) {
         byte[][] w = new byte[44][4];
 
@@ -177,14 +155,6 @@ public class Helper {
         return w;
     }
 
-    public static byte[] xorWords(byte[] a, byte[] b) {
-        byte[] out = new byte[4];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = (byte) (a[i] ^ b[i]);
-        }
-        return out;
-    }
-
     public static byte[] shiftWord(byte[] in, int offset) {
         byte[] out = new byte[4];
         for (int i = 0; i < 4; i++) {
@@ -196,43 +166,51 @@ public class Helper {
     public static byte[] subWord(byte[] in) {
         byte[] out = new byte[4];
         for (int i = 0; i < in.length; i++) {
-            out[i] = subByte(in[i]);
+            out[i] = (byte) Sbox[in[i] & 0xff];
         }
         return out;
     }
 
-    private static byte subByte(byte in) {
-//        int left = (in & 0xff) >>> 4;
-//        int right = (in & 0xff) & 0b00001111;
-//
-//        return (byte) Sbox[16 * left + right];
-        return (byte) Sbox[in & 0xff];
-    }
+    private static byte GMul(byte u, byte v) {
+        byte p = 0;
 
-    public static void main(String[] args) {
-
+        for (int i = 0; i < 8; ++i) {
+            if ((u & 0x01) != 0) {    //
+                p ^= v;
+            }
+            int flag = (v & 0x80);
+            v <<= 1;
+            if (flag != 0) {
+                v ^= 0x1B; /* x^8 + x^4 + x^3 + x + 1 */
+            }
+            u >>= 1;
+        }
+        return p;
     }
 
     public static byte[][] makeState(byte[] input) {
         byte[][] state = new byte[4][4];
+
         for (int rows = 0; rows < 4; rows++) {
             for (int columns = 0; columns < 4; columns++) {
                 state[rows][columns] = input[rows + 4 * columns];
             }
         }
+
         return state;
     }
 
     public static byte[] makeOutput(byte[][] state) {
         byte[] output = new byte[16];
+
         for (int rows = 0; rows < state.length; rows++) {
             for (int columns = 0; columns < state[0].length; columns++) {
                 output[rows + 4 * columns] = state[rows][columns];
             }
         }
+
         return output;
     }
-
 
     private static final int[] Sbox = {
             0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
