@@ -43,8 +43,8 @@ public class Main {
             byte[] input = convert(inputReader.readLine());
             byte[] key = convert(keyReader.readLine());
 
-            var output = Helper.cipher(input, key, outputWriter);
-//            outputWriter.write(byteToString(output));
+            byte[] output = Helper.invCipher(input, key);
+            outputWriter.write(byteToString(output));
 
 
         } catch (IOException e) {
