@@ -17,9 +17,6 @@ public class Main {
             System.out.println("Syntax: [-e | -d] -k keyFile -i inputFile -o outputFile");
             return;
         }
-        if (args.length != 7) {
-            throw new IllegalArgumentException("Incorrect number of arguments.");
-        }
 
         boolean encrypt = true;
         String inputFile = INPUT_FILE;
@@ -45,9 +42,9 @@ public class Main {
 
             byte[] output;
             if (encrypt) {
-                output = Helper.cipher(input, key);
+                output = Aes.encrypt(input, key);
             } else {
-                output = Helper.invCipher(input, key);
+                output = Aes.decrypt(input, key);
             }
             outputWriter.write(byteToString(output));
 
@@ -71,9 +68,11 @@ public class Main {
     private static byte[] convert(String input) {
         String[] byteString = input.split(" ");
         byte[] bytes = new byte[byteString.length];
+
         for (int i = 0; i < bytes.length; i++) {
             bytes[i] = (byte) Integer.parseInt(byteString[i], 16);
         }
+
         return bytes;
     }
 
