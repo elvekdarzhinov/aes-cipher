@@ -77,12 +77,12 @@ public class Aes {
     private static void mixColumns(byte[][] state, byte[][] M) {
         byte[][] tmp = new byte[4][4];
 
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 4; i++) {
             System.arraycopy(state[i], 0, tmp[i], 0, 4);
         }
 
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
                 state[i][j] = (byte) (galoisMul(M[i][0], tmp[0][j]) ^ galoisMul(M[i][1], tmp[1][j]) ^
                         galoisMul(M[i][2], tmp[2][j]) ^ galoisMul(M[i][3], tmp[3][j]));
             }
@@ -96,7 +96,7 @@ public class Aes {
     private static void addRoundKey(byte[][] state, byte[][] keyWords, int offset) {
         for (int row = 0; row < 4; row++) {
             for (int column = 0; column < 4; column++) {
-                state[row][column] = (byte) (state[row][column] ^ keyWords[column + offset][row]);
+                state[row][column] ^=  keyWords[column + offset][row];
             }
         }
     }
@@ -155,21 +155,21 @@ public class Aes {
     }
 
     private static byte galoisMul(byte u, byte v) {
-        byte p = 0;
+        byte result = 0;
 
-        for (int i = 0; i < 8; ++i) {
+        for (int i = 0; i < 8; i++) {
             if ((u & 0x01) != 0) {
-                p ^= v;
+                result ^= v;
             }
             int flag = (v & 0x80);
             v <<= 1;
             if (flag != 0) {
-                v ^= 0x1b; /* x^8 + x^4 + x^3 + x + 1 */
+                v ^= 0x1b; // x^8 + x^4 + x^3 + x + 1
             }
             u >>= 1;
         }
 
-        return p;
+        return result;
     }
 
     private static byte[][] makeState(byte[] input) {
