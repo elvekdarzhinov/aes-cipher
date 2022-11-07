@@ -43,9 +43,6 @@ public class Main {
             byte[] input = convert(inputReader.readLine());
             byte[] key = convert(keyReader.readLine());
 
-            System.out.println("Input:  " + byteToString(input));
-
-            System.out.println("Output: " + byteToString(Helper.makeOutput(Helper.makeState(input))));
 //            IdeaCipher ideaCipher = new IdeaCipher(key, rounds);
 //
 //            for (int i = 0; i < input.length; i += IdeaCipher.BLOCK_SIZE) {
@@ -59,7 +56,7 @@ public class Main {
 
     }
 
-    private static String byteToString(byte[] array) {
+    public static String byteToString(byte[] array) {
         StringBuilder sb = new StringBuilder();
 
         for (var b : array) {
